@@ -1,0 +1,45 @@
+services:
+
+  mariadb-cadastro:
+    image: mariadb:10.5
+    container_name: mariadb-cadastro
+    ports:
+      - "3307:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: gestaoatendimento_db
+      MYSQL_USER: dev
+      MYSQL_PASSWORD: dev123
+    command: --default-authentication-plugin=mysql_native_password
+    networks:
+      - fiap-net
+
+  mariadb-fila:
+    image: mariadb:10.5
+    container_name: mariadb-fila
+    ports:
+      - "3308:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: fila
+      MYSQL_USER: dev
+      MYSQL_PASSWORD: dev123
+    command: --default-authentication-plugin=mysql_native_password
+    networks:
+      - fiap-net
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"     # Porta para apps
+      - "15672:15672"   # Painel de administração
+    environment:
+      RABBITMQ_DEFAULT_USER: admin
+      RABBITMQ_DEFAULT_PASS: admin123
+    networks:
+      - fiap-net
+
+networks:
+  fiap-net:
+    driver: bridge
