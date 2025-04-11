@@ -12,5 +12,5 @@ public interface PacienteRepository extends ReactiveCrudRepository<Paciente, Lon
     Mono<Paciente> findFirstByUnidadeIdAndStatusOrderByPosicaoNaFilaAsc(Long unidadeId, String status);
 
     Flux<Paciente> findByUnidadeIdAndStatusAndPosicaoNaFilaGreaterThan(Long unidadeId, String status, int posicao);
-
+    Flux<Paciente> findByUnidadeIdAndStatusOrderByPosicaoNaFilaAsc(Long unidadeId, String status);
 }

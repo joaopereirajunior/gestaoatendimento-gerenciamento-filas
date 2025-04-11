@@ -2,39 +2,30 @@ package br.com.fiap.gestaoatendimentofila.service;
 
 import br.com.fiap.gestaoatendimentofila.config.rabbit.RabbitMQConfig;
 import br.com.fiap.gestaoatendimentofila.domain.Paciente;
+import br.com.fiap.gestaoatendimentofila.domain.dto.PacienteDTO;
 import br.com.fiap.gestaoatendimentofila.repository.PacienteRepository;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 
 @Service
 public class FilaAtendimentoService {
     private final RabbitTemplate rabbitTemplate;
     private final PacienteRepository pacienteRepository;
-    private NotificacaoService notificacaoService;
+    //private NotificacaoService notificacaoService;
 
 
     public FilaAtendimentoService(RabbitTemplate rabbitTemplate, PacienteRepository pacienteRepository, NotificacaoService notificacaoService)
     {
         this.rabbitTemplate = rabbitTemplate;
         this.pacienteRepository = pacienteRepository;
-        this.notificacaoService = notificacaoService;
+        //this.notificacaoService = notificacaoService;
     }
 
-    /*public Mono<Paciente> adicionar(Paciente paciente) {
-        paciente.setStatus("AGUARDANDO");
-        rabbitTemplate.convertAndSend(RabbitMQConfig.FILA_ATENDIMENTO, pacienteF);
-
-        // Enviar notificação
-        String mensagem = "Olá " + paciente.getNome() + ", você entrou na fila de atendimento.";
-        notificacaoService.enviarSms(paciente.getTelefone(), mensagem);
-
-        return pacienteRepository.save(paciente);
-
-    }*/
-
-    public Mono<Paciente> adicionar(Paciente paciente) {
+    public Mono<Paciente> adicionar(Paciente paciente)
+    {
         paciente.setStatus("AGUARDANDO");
 
         return pacienteRepository
@@ -48,33 +39,51 @@ public class FilaAtendimentoService {
                     rabbitTemplate.convertAndSend(RabbitMQConfig.FILA_ATENDIMENTO, pacienteFinal);
 
                     // Enviar SMS de notificação
-                    String mensagem = "Olá " + pacienteFinal.getNome() +
+                    /*String mensagem = "Olá " + pacienteFinal.getNome() +
                             ", você entrou na fila da unidade " + pacienteFinal.getUnidadeId() +
                             " na posição número " + pacienteFinal.getPosicaoNaFila() + ".";
-                    notificacaoService.enviarSms(pacienteFinal.getTelefone(), mensagem);
+                    notificacaoService.enviarSms(pacienteFinal.getTelefone(), mensagem);*/
 
                     // Salvar no banco
-                    return pacienteRepository.save(pacienteFinal);
+                    return pacienteRepository.save(pacienteFinal)
+                            .flatMap(savedPaciente -> {
+                                PacienteDTO pacienteDTO = new PacienteDTO(savedPaciente.getNome(), savedPaciente.getPosicaoNaFila(), savedPaciente.getTelefone());
+                                // Enviar o objeto para o endpoint
+                                WebClient webClient = WebClient.create();
+                                return webClient.post()
+                                        .uri("http://localhost:3000/api/notificacoes/entrada")
+                                        .bodyValue(pacienteDTO)
+                                        .retrieve()
+                                        .bodyToMono(Void.class)
+                                        .thenReturn(savedPaciente);
+                            });
                 });
     }
 
-
-    /*public Mono<Paciente> chamarProximo(Long unidadeId) {
-        return pacienteRepository.findByUnidadeIdAndStatusOrderByIdAsc(unidadeId, "AGUARDANDO")
-                .next()
-
-                .flatMap(paciente -> {
-                    paciente.setStatus("ATENDIDO");
-                    return pacienteRepository.save(paciente);
-                });
-    }*/
-    public Mono<Paciente> chamarProximo(Long unidadeId) {
+    public Mono<Paciente> chamarProximo(Long unidadeId)
+    {
         return pacienteRepository
                 .findFirstByUnidadeIdAndStatusOrderByPosicaoNaFilaAsc(unidadeId, "AGUARDANDO")
                 .flatMap(primeiro -> {
                     primeiro.setStatus("ATENDIDO");
 
                     return pacienteRepository.save(primeiro)
+                            .flatMap(savedPrimeiro -> {
+                                // Enviar notificação para o endpoint de saída da fila
+                                PacienteDTO pacienteDTO = new PacienteDTO(
+                                        savedPrimeiro.getNome(),
+                                        savedPrimeiro.getPosicaoNaFila(),
+                                        savedPrimeiro.getTelefone()
+                                );
+
+                                WebClient webClient = WebClient.create();
+                                return webClient.post()
+                                        .uri("http://localhost:3000/api/notificacoes/saida")
+                                        .bodyValue(pacienteDTO)
+                                        .retrieve()
+                                        .bodyToMono(Void.class)
+                                        .then(Mono.just(savedPrimeiro));
+                            })
                             .thenMany(
                                     pacienteRepository.findByUnidadeIdAndStatusAndPosicaoNaFilaGreaterThan(
                                             unidadeId, "AGUARDANDO", primeiro.getPosicaoNaFila()
@@ -84,8 +93,24 @@ public class FilaAtendimentoService {
                                 paciente.setPosicaoNaFila(paciente.getPosicaoNaFila() - 1);
                                 return pacienteRepository.save(paciente);
                             })
-                            .then(Mono.just(primeiro));
+                            .thenMany(
+                                    pacienteRepository.findByUnidadeIdAndStatusOrderByPosicaoNaFilaAsc(unidadeId, "AGUARDANDO")
+                                            .take(5) // Resgatar os 5 primeiros pacientes
+                            )
+                            .collectList()
+                            .flatMap(primeirosCinco -> {
+                                // Enviar notificação para o endpoint de previsão
+                                WebClient webClient = WebClient.create();
+                                return webClient.post()
+                                        .uri("http://localhost:3000/api/notificacoes/previsao")
+                                        .bodyValue(primeirosCinco.stream()
+                                                .map(p -> new PacienteDTO(p.getNome(), p.getPosicaoNaFila(), p.getTelefone()))
+                                                .toList())
+                                        .retrieve()
+                                        .bodyToMono(Void.class)
+                                        .then(Mono.just(primeiro));
+                            });
                 });
-    }
 
+    }
 }
