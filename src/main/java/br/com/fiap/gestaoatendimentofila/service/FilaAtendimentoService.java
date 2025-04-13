@@ -1,27 +1,19 @@
 package br.com.fiap.gestaoatendimentofila.service;
 
-import br.com.fiap.gestaoatendimentofila.config.rabbit.RabbitMQConfig;
 import br.com.fiap.gestaoatendimentofila.domain.Paciente;
 import br.com.fiap.gestaoatendimentofila.domain.dto.PacienteDTO;
 import br.com.fiap.gestaoatendimentofila.repository.PacienteRepository;
-import org.springframework.amqp.rabbit.core.RabbitTemplate;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 
 @Service
 public class FilaAtendimentoService {
-    private final RabbitTemplate rabbitTemplate;
     private final PacienteRepository pacienteRepository;
-    //private NotificacaoService notificacaoService;
 
-
-    public FilaAtendimentoService(RabbitTemplate rabbitTemplate, PacienteRepository pacienteRepository, NotificacaoService notificacaoService)
+    public FilaAtendimentoService(PacienteRepository pacienteRepository)
     {
-        this.rabbitTemplate = rabbitTemplate;
         this.pacienteRepository = pacienteRepository;
-        //this.notificacaoService = notificacaoService;
     }
 
     public Mono<Paciente> adicionar(Paciente paciente)
@@ -35,14 +27,6 @@ public class FilaAtendimentoService {
                     return paciente;
                 })
                 .flatMap(pacienteFinal -> {
-                    // Enviar para fila RabbitMQ
-                    rabbitTemplate.convertAndSend(RabbitMQConfig.FILA_ATENDIMENTO, pacienteFinal);
-
-                    // Enviar SMS de notificação
-                    /*String mensagem = "Olá " + pacienteFinal.getNome() +
-                            ", você entrou na fila da unidade " + pacienteFinal.getUnidadeId() +
-                            " na posição número " + pacienteFinal.getPosicaoNaFila() + ".";
-                    notificacaoService.enviarSms(pacienteFinal.getTelefone(), mensagem);*/
 
                     // Salvar no banco
                     return pacienteRepository.save(pacienteFinal)
