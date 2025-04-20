@@ -10,8 +10,8 @@ class PacienteDTOTest {
         PacienteDTO paciente = new PacienteDTO("João", 1, "11999999999");
 
         assertEquals("João", paciente.nome());
-        assertEquals(1, paciente.posicaoNaFila());
-        assertEquals("11999999999", paciente.telefone());
+        assertEquals(1, paciente.posicao());
+        assertEquals("11999999999", paciente.numero());
     }
 
     @Test

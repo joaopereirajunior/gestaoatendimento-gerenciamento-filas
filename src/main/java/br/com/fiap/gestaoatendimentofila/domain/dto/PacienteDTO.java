@@ -2,16 +2,16 @@ package br.com.fiap.gestaoatendimentofila.domain.dto;
 
 public record PacienteDTO(
         String nome,
-        int posicaoNaFila,
-        String telefone) {
+        int posicao,
+        String numero) {
     public PacienteDTO {
         if (nome == null || nome.isBlank()) {
             throw new IllegalArgumentException("O nome não pode ser nulo ou vazio.");
         }
-        if (posicaoNaFila <=0 ) {
+        if (posicao <=0 ) {
             throw new IllegalArgumentException("A posição na fila não pode ser nula ou vazia.");
         }
-        if (telefone == null || telefone.isBlank()) {
+        if (numero == null || numero.isBlank()) {
             throw new IllegalArgumentException("O número não pode ser nulo ou vazio.");
         }
     }

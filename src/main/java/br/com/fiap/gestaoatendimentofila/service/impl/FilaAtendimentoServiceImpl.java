@@ -35,7 +35,7 @@ public class FilaAtendimentoServiceImpl implements FilaAtendimentoService {
                                 // Enviar o objeto para o endpoint
                                 WebClient webClient = WebClient.create();
                                 return webClient.post()
-                                        .uri("http://localhost:9092/api/notificacoes/entrada")
+                                        .uri("http://localhost:8082/api/notificacoes/entrada")
                                         .bodyValue(pacienteDTO)
                                         .retrieve()
                                         .bodyToMono(Void.class)
@@ -62,7 +62,7 @@ public class FilaAtendimentoServiceImpl implements FilaAtendimentoService {
 
                                 WebClient webClient = WebClient.create();
                                 return webClient.post()
-                                        .uri("http://localhost:9092/api/notificacoes/saida")
+                                        .uri("http://localhost:8082/api/notificacoes/saida")
                                         .bodyValue(pacienteDTO)
                                         .retrieve()
                                         .bodyToMono(Void.class)
@@ -81,20 +81,17 @@ public class FilaAtendimentoServiceImpl implements FilaAtendimentoService {
                                     pacienteRepository.findByUnidadeIdAndStatusOrderByPosicaoNaFilaAsc(unidadeId, "AGUARDANDO")
                                             .take(5) // Resgatar os 5 primeiros pacientes
                             )
-                            .collectList()
-                            .flatMap(primeirosCinco -> {
-                                // Enviar notificação para o endpoint de previsão
+                            .flatMap(paciente -> {
+                                // Enviar notificação para o endpoint de previsão, um por um
                                 WebClient webClient = WebClient.create();
+                                PacienteDTO pacienteDTO = new PacienteDTO(paciente.getNome(), paciente.getPosicaoNaFila(), paciente.getTelefone());
                                 return webClient.post()
-                                        .uri("http://localhost:9092/api/notificacoes/previsao")
-                                        .bodyValue(primeirosCinco.stream()
-                                                .map(p -> new PacienteDTO(p.getNome(), p.getPosicaoNaFila(), p.getTelefone()))
-                                                .toList())
+                                        .uri("http://localhost:8082/api/notificacoes/previsao")
+                                        .bodyValue(pacienteDTO)
                                         .retrieve()
-                                        .bodyToMono(Void.class)
-                                        .then(Mono.just(primeiro));
-                            });
+                                        .bodyToMono(Void.class);
+                            })
+                            .then(Mono.just(primeiro));
                 });
-
     }
 }

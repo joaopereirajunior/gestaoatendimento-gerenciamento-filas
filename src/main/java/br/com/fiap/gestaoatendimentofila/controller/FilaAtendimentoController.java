@@ -1,6 +1,7 @@
 package br.com.fiap.gestaoatendimentofila.controller;
 
 import br.com.fiap.gestaoatendimentofila.domain.Paciente;
+import br.com.fiap.gestaoatendimentofila.domain.dto.PacienteRequstDTO;
 import br.com.fiap.gestaoatendimentofila.service.FilaAtendimentoService;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
