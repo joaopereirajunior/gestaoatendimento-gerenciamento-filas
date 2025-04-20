@@ -9,9 +9,19 @@ services:
       MYSQL_DATABASE: fila
       MYSQL_USER: dev
       MYSQL_PASSWORD: dev123
+    volumes:
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
     command: --default-authentication-plugin=mysql_native_password
     networks:
       - fiap-net
+  springboot-fila:
+    build:
+      context: .
+    container_name: springboot-fila
+    depends_on:
+      - mariadb-fila
+    ports:
+        - "8081:8081"
 
   rabbitmq:
     image: rabbitmq:3-management
